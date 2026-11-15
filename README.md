@@ -1,6 +1,6 @@
 # cfrp-truss
 
-**Truss-Anchored, Self-Sensing CFRP Concrete & Column Retrofit Kits.**
+**Truss-Anchored, Self-Sensing CFRP Concrete & Column Retrofit Kits (`v0.2.0`).**
 
 Combines the ACI 440.2R-17/-23 beam mechanics of [`aska-physical/cfrp-strengthening`](https://github.com/aska-physical/cfrp-strengthening), the $45^\circ$ tension-tie truss mechanics of [`aska-physical/fibral-rigidity`](https://github.com/aska-physical/fibral-rigidity), and the multi-frequency Cole dispersion model of [`aska-physical/impedence-analyzers`](https://github.com/aska-physical/impedence-analyzers) (`Foundation-0/nhanes-bioimpedance`).
 
@@ -18,7 +18,11 @@ On a standard $300 \times 600\text{ mm}$ RC beam ($f'_c = 35\text{ MPa}$) retrof
    - **50% less carbon fiber, higher strength:** A `120 mm²` truss-anchored kit achieves **$\phi M_n = 375.51\text{ kN}\cdot\text{m}$**, beating a `240 mm²` flat EBR plate (**$277.08\text{ kN}\cdot\text{m}$**) while cutting carbon mass in half.
    - **+77.34% higher flexural gain at equal fiber area (`240 mm²`):** Reaches **$\phi M_n = 433.45\text{ kN}\cdot\text{m}$** ($43.24\%$ fiber utilization, governed by concrete crushing ductility rather than premature peel).
    - **Simultaneous $+177.2\text{ kN}$ shear strengthening:** The $45^\circ$ stitches add $V_f = 177.22\text{ kN}$ at the strict `ACI 440.2R §11.4.1.2` aggregate-interlock cap ($\varepsilon_{fv} \le 0.004$).
-2. **Zero-Sensor-Wire Self-Sensing Bondline QA:** Driving a 4-wire Cole impedance sweep ([EIS Composite Monitoring](https://www.researchgate.net/publication/321206389_Impedance_spectroscopy_as_a_tool_for_moisture_uptake_monitoring_in_construction_composites_during_service)) directly through the conductive carbon chord separates axial load strain (`+0.409%` $2\text{ MHz}$ resistance shift, `0.00%` $50\text{ kHz}$ reactance crosstalk), sub-$T_g$ epoxy moisture ingress (`22.4%` $50\text{ kHz}$ reactance shift), and incipient debonding (`+111.6%` $100\text{ Hz}$ contact-resistance jump).
+2. **Cracked-Section Serviceability & Pre-Stressed Truss Relief (`ACI 440.2R-17 §10.2.8–10.2.9`, Issue #1):**
+   - Solves exact coupled cracked-section equilibrium accounting for initial dead-load soffit strain $\varepsilon_{bi} = 0.00047$ ($M_{DL} = 55\text{ kN}\cdot\text{m}, c_{k,0} = 160.75\text{ mm}$) across four code gates: total concrete stress $f_{c,s} \le 0.60 f'_c$ ($21.0\text{ MPa}$), sustained concrete stress $f_{c,\text{sus}} \le 0.45 f'_c$ ($15.75\text{ MPa}$), steel stress $f_{s,s} \le 0.80 f_y$ ($336.0\text{ MPa}$), and CFRP creep-rupture stress $f_{f,s} \le 0.55 f_{fu}$ ($2210.31\text{ MPa}$).
+   - **Design service envelope ($M_s = 175\text{ kN}\cdot\text{m}, M_{\text{sus}} = 91\text{ kN}\cdot\text{m}$):** Passive `240 mm²` kit passes all four gates ($f_{c,s} = 14.70\text{ MPa}, f_{c,\text{sus}} = 7.83\text{ MPa}, f_{s,s} = 220.74\text{ MPa}, f_{f,s} = 167.10\text{ MPa}$).
+    - **Heavy service overload ($M_s = 260\text{ kN}\cdot\text{m}, M_{\text{sus}} = 165\text{ kN}\cdot\text{m}, M_u = 382\text{ kN}\cdot\text{m}$):** Reproduces the upstream `cfrp-strengthening` Track 1 bottleneck—a passive kit passes ULS ($382 < 433.45\text{ kN}\cdot\text{m}$) yet **fails concrete serviceability** ($f_{c,s} = 21.64 > 21.0\text{ MPa}$). Locking **$3,200\,\mu\varepsilon$ active pre-strain** ($\sim 150.7\text{ kN}$) into the $45^\circ$ truss end-anchors deepens $c_k$ from $169.65$ to $191.91\text{ mm}$, cutting $f_{c,s}$ to **$18.77\text{ MPa}$**, $f_{c,\text{sus}}$ to **$10.96\text{ MPa}$**, and rebar stress by $-90.59\text{ MPa}$ to **$230.83\text{ MPa}$**, while holding CFRP stress at **$808.73\text{ MPa}$** ($36.6\%$ of the $2210.31\text{ MPa}$ creep-rupture limit).
+   3. **Zero-Sensor-Wire Self-Sensing Bondline QA:** Driving a 4-wire Cole impedance sweep ([EIS Composite Monitoring](https://www.researchgate.net/publication/321206389_Impedance_spectroscopy_as_a_tool_for_moisture_uptake_monitoring_in_construction_composites_during_service)) directly through the conductive carbon chord separates axial load strain (`+0.409%` $2\text{ MHz}$ resistance shift, `0.00%` $50\text{ kHz}$ reactance crosstalk), sub-$T_g$ epoxy moisture ingress (`22.4%` $50\text{ kHz}$ reactance shift), and incipient debonding (`+111.6%` $100\text{ Hz}$ contact-resistance jump).
 
 ## Reproduce & Verify
 
@@ -26,7 +30,7 @@ On a standard $300 \times 600\text{ mm}$ RC beam ($f'_c = 35\text{ MPa}$) retrof
 python3 verify.py
 ```
 
-Checks all ACI 440.2R section-equilibrium equations, $45^\circ$ shear-stitch capacities, Cole EIS separability metrics, and 5 must-fail controls against [`results/certificate.json`](results/certificate.json).
+Checks all ACI 440.2R section-equilibrium equations, $45^\circ$ shear-stitch capacities, Cole EIS separability metrics, and **8 must-fail controls** (SymPy symbolic cracked-section identity + ULS + `§10.2.8` serviceability + `§10.2.9` creep-rupture checks) against [`results/certificate.json`](results/certificate.json).
 
 ## `aska-physical` Ecosystem & Upstream Lineage
 
