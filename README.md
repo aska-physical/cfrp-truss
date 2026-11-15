@@ -1,6 +1,6 @@
 # cfrp-truss
 
-**Truss-Anchored, Self-Sensing CFRP Concrete & Column Retrofit Kits (`v0.2.0`).**
+**Truss-Anchored, Self-Sensing CFRP Concrete & Column Retrofit Kits (`v0.3.0`).**
 
 Combines the ACI 440.2R-17/-23 beam mechanics of [`aska-physical/cfrp-strengthening`](https://github.com/aska-physical/cfrp-strengthening), the $45^\circ$ tension-tie truss mechanics of [`aska-physical/fibral-rigidity`](https://github.com/aska-physical/fibral-rigidity), and the multi-frequency Cole dispersion model of [`aska-physical/impedence-analyzers`](https://github.com/aska-physical/impedence-analyzers) (`Foundation-0/nhanes-bioimpedance`).
 
@@ -22,7 +22,11 @@ On a standard $300 \times 600\text{ mm}$ RC beam ($f'_c = 35\text{ MPa}$) retrof
    - Solves exact coupled cracked-section equilibrium accounting for initial dead-load soffit strain $\varepsilon_{bi} = 0.00047$ ($M_{DL} = 55\text{ kN}\cdot\text{m}, c_{k,0} = 160.75\text{ mm}$) across four code gates: total concrete stress $f_{c,s} \le 0.60 f'_c$ ($21.0\text{ MPa}$), sustained concrete stress $f_{c,\text{sus}} \le 0.45 f'_c$ ($15.75\text{ MPa}$), steel stress $f_{s,s} \le 0.80 f_y$ ($336.0\text{ MPa}$), and CFRP creep-rupture stress $f_{f,s} \le 0.55 f_{fu}$ ($2210.31\text{ MPa}$).
    - **Design service envelope ($M_s = 175\text{ kN}\cdot\text{m}, M_{\text{sus}} = 91\text{ kN}\cdot\text{m}$):** Passive `240 mm²` kit passes all four gates ($f_{c,s} = 14.70\text{ MPa}, f_{c,\text{sus}} = 7.83\text{ MPa}, f_{s,s} = 220.74\text{ MPa}, f_{f,s} = 167.10\text{ MPa}$).
     - **Heavy service overload ($M_s = 260\text{ kN}\cdot\text{m}, M_{\text{sus}} = 165\text{ kN}\cdot\text{m}, M_u = 382\text{ kN}\cdot\text{m}$):** Reproduces the upstream `cfrp-strengthening` Track 1 bottleneck—a passive kit passes ULS ($382 < 433.45\text{ kN}\cdot\text{m}$) yet **fails concrete serviceability** ($f_{c,s} = 21.64 > 21.0\text{ MPa}$). Locking **$3,200\,\mu\varepsilon$ active pre-strain** ($\sim 150.7\text{ kN}$) into the $45^\circ$ truss end-anchors deepens $c_k$ from $169.65$ to $191.91\text{ mm}$, cutting $f_{c,s}$ to **$18.77\text{ MPa}$**, $f_{c,\text{sus}}$ to **$10.96\text{ MPa}$**, and rebar stress by $-90.59\text{ MPa}$ to **$230.83\text{ MPa}$**, while holding CFRP stress at **$808.73\text{ MPa}$** ($36.6\%$ of the $2210.31\text{ MPa}$ creep-rupture limit).
-   3. **Zero-Sensor-Wire Self-Sensing Bondline QA:** Driving a 4-wire Cole impedance sweep ([EIS Composite Monitoring](https://www.researchgate.net/publication/321206389_Impedance_spectroscopy_as_a_tool_for_moisture_uptake_monitoring_in_construction_composites_during_service)) directly through the conductive carbon chord separates axial load strain (`+0.409%` $2\text{ MHz}$ resistance shift, `0.00%` $50\text{ kHz}$ reactance crosstalk), sub-$T_g$ epoxy moisture ingress (`22.4%` $50\text{ kHz}$ reactance shift), and incipient debonding (`+111.6%` $100\text{ Hz}$ contact-resistance jump).
+3. **Coupled Finite-Difference Shear-Flow, `ACI 318M-19 Ch. 17` Dowel Sizing & Dual-Cartridge Epoxy Package (`ICC-ES ESR-3814`, Issue #2):**
+   - **Post-yield shear-flow spike (`3.70x` over average):** Finite-difference equilibrium proves $dT_f/dx$ jumps **`5.36x`** once steel yields (`79.00` $\to$ **`423.14 N/mm`**), driving unassisted groove stress to `4.07 MPa` (`> 2.66 MPa` concrete peel cap); pairs of `8 mm` $45^\circ$ stitches at $150\text{ mm}$ (`L_drill = 226 mm`) safely carry the `21.94 kN` excess (`22.16 <= 34.18 kN`, `interaction = 0.518`).
+   - **Inverse dowel-diameter theorem & stirrup-core end lock:** SymPy proves $\partial N_{ag}/\partial d_a = -N_{ag}/d_a < 0$ when beam width $b < 2 c_{Na}$ truncates projected bond area—so `12 x 8 mm` $45^\circ$ dowels (`L_drill = 230 mm`, engaging closed stirrups per `§17.5.2.1`, $\phi_s N_{\text{stirrups}} = 445.1\text{ kN}$) deliver **$\phi N_{ag} = 195.76\text{ kN}$ (`PASS` vs. `182.28 kN` ULS & `12.66 <= 16.14 kN` `§17.5.2.2` sustained creep)**, whereas oversized `16 mm` dowels drop to `110.23 kN` (`FAIL`) and `90°` vertical pins fail in guillotine shear.
+   - **Exact field epoxy count:** `2,288.4 mL` gross mixed epoxy (`1,545.6 mL` grooves + `692.8 mL` `12 mm` boreholes + `50 mL` static-mixer purge) = **`4 x 600 mL` side-by-side dual cartridges per `6.0 m` beam (`95.4%` utilization)**.
+   4. **Zero-Sensor-Wire Self-Sensing Bondline QA:** Driving a 4-wire Cole impedance sweep ([EIS Composite Monitoring](https://www.researchgate.net/publication/321206389_Impedance_spectroscopy_as_a_tool_for_moisture_uptake_monitoring_in_construction_composites_during_service)) directly through the conductive carbon chord separates axial load strain (`+0.409%` $2\text{ MHz}$ resistance shift, `0.00%` $50\text{ kHz}$ reactance crosstalk), sub-$T_g$ epoxy moisture ingress (`22.4%` $50\text{ kHz}$ reactance shift), and incipient debonding (`+111.6%` $100\text{ Hz}$ contact-resistance jump).
 
 ## Reproduce & Verify
 
@@ -30,7 +34,7 @@ On a standard $300 \times 600\text{ mm}$ RC beam ($f'_c = 35\text{ MPa}$) retrof
 python3 verify.py
 ```
 
-Checks all ACI 440.2R section-equilibrium equations, $45^\circ$ shear-stitch capacities, Cole EIS separability metrics, and **8 must-fail controls** (SymPy symbolic cracked-section identity + ULS + `§10.2.8` serviceability + `§10.2.9` creep-rupture checks) against [`results/certificate.json`](results/certificate.json).
+Checks all ACI 440.2R section-equilibrium equations, $45^\circ$ shear-stitch capacities, Cole EIS separability metrics, and *12 must-fail controls** (SymPy symbolic cracked-section identity + ULS + `§10.2.8` serviceability + `§10.2.9` creep-rupture checks) against [`results/certificate.json`](results/certificate.json).
 
 ## `aska-physical` Ecosystem & Upstream Lineage
 
