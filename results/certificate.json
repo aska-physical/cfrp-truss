@@ -10,7 +10,7 @@
     "truss_anchored_240mm2_phi_Mn_kNm": 433.451,
     "unstrengthened_phi_Mn_kNm": 74.898
   },
-  "certificate_version": "1.0.0",
+  "certificate_version": "0.2.0",
   "must_fail_controls": [
     {
       "control": "ebr_strain_exceeds_0.9_eps_fu_cap",
@@ -31,6 +31,18 @@
     {
       "control": "half_mass_truss_kit_underperforms_double_mass_flat_ebr",
       "rejected": true
+    },
+    {
+      "control": "uls_passing_heavy_overload_beam_passes_serviceability_without_check",
+      "rejected": true
+    },
+    {
+      "control": "excessive_cfrp_sustained_stress_passes_0.55ffu_creep_rupture_gate",
+      "rejected": true
+    },
+    {
+      "control": "omitting_dead_load_eps_bi_is_conservative_for_rebar_stress",
+      "rejected": true
     }
   ],
   "repository": "aska-physical/cfrp-truss",
@@ -38,6 +50,71 @@
     "debonding_100hz_resistance_jump_pct": 111.61,
     "moisture_50khz_reactance_shift_pct": 22.4,
     "strain_0.5pct_hf_resistance_shift_pct": 0.409
+  },
+  "serviceability_and_creep_checks_issue_1": {
+    "design_envelope_175kNm_passive": {
+      "all_serviceability_gates_pass": true,
+      "ck_service_mm": 168.3867,
+      "fc_limit_0.60fc_MPa": 21.0,
+      "fc_service_MPa": 14.697,
+      "fc_sustained_MPa": 7.834,
+      "fc_sustained_limit_0.45fc_MPa": 15.75,
+      "ff_creep_limit_0.55ffu_MPa": 2210.306,
+      "ff_service_MPa": 167.097,
+      "ff_sustained_MPa": 50.079,
+      "fs_limit_0.80fy_MPa": 336.0,
+      "fs_service_MPa": 220.737,
+      "gates": {
+        "cfrp_creep_rupture_0.55ffu": true,
+        "concrete_sustained_0.45fc": true,
+        "concrete_total_0.60fc": true,
+        "steel_service_0.80fy": true
+      }
+    },
+    "heavy_overload_260kNm_passive_fails_service": {
+      "all_serviceability_gates_pass": false,
+      "ck_service_mm": 169.6511,
+      "fc_limit_0.60fc_MPa": 21.0,
+      "fc_service_MPa": 21.639,
+      "fc_sustained_MPa": 13.88,
+      "fc_sustained_limit_0.45fc_MPa": 15.75,
+      "ff_creep_limit_0.55ffu_MPa": 2210.306,
+      "ff_service_MPa": 285.52,
+      "ff_sustained_MPa": 153.165,
+      "fs_limit_0.80fy_MPa": 336.0,
+      "fs_service_MPa": 321.424,
+      "gates": {
+        "cfrp_creep_rupture_0.55ffu": true,
+        "concrete_sustained_0.45fc": true,
+        "concrete_total_0.60fc": false,
+        "steel_service_0.80fy": true
+      }
+    },
+    "heavy_overload_260kNm_prestressed_3200ue_relieves_steel": {
+      "all_serviceability_gates_pass": true,
+      "ck_service_mm": 191.9064,
+      "fc_limit_0.60fc_MPa": 21.0,
+      "fc_service_MPa": 18.771,
+      "fc_sustained_MPa": 10.956,
+      "fc_sustained_limit_0.45fc_MPa": 15.75,
+      "ff_creep_limit_0.55ffu_MPa": 2210.306,
+      "ff_service_MPa": 808.733,
+      "ff_sustained_MPa": 676.925,
+      "fs_limit_0.80fy_MPa": 336.0,
+      "fs_service_MPa": 230.832,
+      "gates": {
+        "cfrp_creep_rupture_0.55ffu": true,
+        "concrete_sustained_0.45fc": true,
+        "concrete_total_0.60fc": true,
+        "steel_service_0.80fy": true
+      }
+    },
+    "initial_dead_load_55kNm": {
+      "Ec_MPa": 27805.57,
+      "Icr0_mm4": 1807847682.7,
+      "ck0_mm": 160.7489,
+      "eps_bi": 0.00047
+    }
   },
   "shear_stitch_45deg": {
     "Vf_45deg_kN": 177.218,
