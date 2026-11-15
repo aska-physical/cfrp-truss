@@ -1,4 +1,166 @@
 {
+  "aci318_ch17_dowel_and_epoxy_sizing_issue_2": {
+    "chord_shear_flow_fd_481kNm": {
+      "L_shear_mm": 2000.0,
+      "M_nominal_peak_kNm": 481.61,
+      "Tf_midspan_kN": 356.952,
+      "Tf_support_kN": 128.288,
+      "dx_mm": 50.0,
+      "post_yield_over_avg_ratio": 3.701,
+      "post_yield_over_elastic_ratio": 5.356,
+      "qf_avg_N_per_mm": 114.332,
+      "qf_excess_carried_by_stitches_N_per_mm": 146.269,
+      "qf_post_yield_peak_N_per_mm": 423.142,
+      "qf_pre_yield_N_per_mm": 79.003,
+      "tau_groove_avg_MPa": 1.099,
+      "tau_groove_concrete_peel_cap_MPa": 2.662,
+      "tau_groove_post_yield_peak_MPa": 4.069,
+      "wetted_groove_perimeter_mm": 104.0
+    },
+    "distributed_post_yield_stitch_pair_8mm": {
+      "N_ua_uplift_kN": 15.67,
+      "T_dowel_ult_group_kN": 22.16,
+      "all_ch17_gates_pass": true,
+      "cNa_mm": 116.52,
+      "da_mm": 8.0,
+      "gates": {
+        "adhesive_bond_group_17.6.5": true,
+        "cfrp_dowel_material_no_guillotine": true,
+        "concrete_pryout_17.7.3": true,
+        "sustained_epoxy_creep_17.5.2.2": true,
+        "tension_shear_interaction_17.8": true,
+        "uplift_cone_or_stirrup_core": true
+      },
+      "hef_eff_mm": 159.81,
+      "interaction_5_3": 0.5181,
+      "n_anchors": 2,
+      "phi_N_stirrup_core_kN": 98.91,
+      "phi_Nag_bond_group_kN": 34.18,
+      "phi_Ncbg_unreinforced_kN": 27.23,
+      "phi_Vcpg_pryout_kN": 73.62,
+      "sustained_0.55phiNba_cap_kN": 16.12,
+      "sustained_per_anchor_kN": 0.0,
+      "tau_epoxy_slant_ult_MPa": 2.14,
+      "theta_deg": 45.0,
+      "unreinforced_cone_efficiency_pct": 25.03
+    },
+    "dual_cartridge_epoxy_6m_beam": {
+      "cartridge_size_mL": 600.0,
+      "dowel_holes_epoxy_mL": 692.8,
+      "dual_cartridges_per_6m_beam": 4,
+      "groove_epoxy_mL": 1545.6,
+      "static_nozzle_purge_mL": 50.0,
+      "total_mixed_epoxy_mL": 2288.4
+    },
+    "end_prestress_12x16mm_oversized_bond_fails": {
+      "N_ua_uplift_kN": 128.89,
+      "T_dowel_ult_group_kN": 182.28,
+      "all_ch17_gates_pass": false,
+      "cNa_mm": 233.05,
+      "da_mm": 16.0,
+      "gates": {
+        "adhesive_bond_group_17.6.5": false,
+        "cfrp_dowel_material_no_guillotine": true,
+        "concrete_pryout_17.7.3": true,
+        "sustained_epoxy_creep_17.5.2.2": true,
+        "tension_shear_interaction_17.8": false,
+        "uplift_cone_or_stirrup_core": true
+      },
+      "hef_eff_mm": 176.78,
+      "interaction_5_3": 2.4667,
+      "n_anchors": 12,
+      "phi_N_stirrup_core_kN": 445.1,
+      "phi_Nag_bond_group_kN": 110.23,
+      "phi_Ncbg_unreinforced_kN": 83.5,
+      "phi_Vcpg_pryout_kN": 237.42,
+      "sustained_0.55phiNba_cap_kN": 35.66,
+      "sustained_per_anchor_kN": 12.66,
+      "tau_epoxy_slant_ult_MPa": 1.314,
+      "theta_deg": 45.0,
+      "unreinforced_cone_efficiency_pct": 11.0
+    },
+    "end_prestress_12x8mm_45deg_stirrup_core_passes": {
+      "N_ua_uplift_kN": 128.89,
+      "T_dowel_ult_group_kN": 182.28,
+      "all_ch17_gates_pass": true,
+      "cNa_mm": 116.52,
+      "da_mm": 8.0,
+      "gates": {
+        "adhesive_bond_group_17.6.5": true,
+        "cfrp_dowel_material_no_guillotine": true,
+        "concrete_pryout_17.7.3": true,
+        "sustained_epoxy_creep_17.5.2.2": true,
+        "tension_shear_interaction_17.8": true,
+        "uplift_cone_or_stirrup_core": true
+      },
+      "hef_eff_mm": 160.0,
+      "interaction_5_3": 0.9471,
+      "n_anchors": 12,
+      "phi_N_stirrup_core_kN": 445.1,
+      "phi_Nag_bond_group_kN": 195.76,
+      "phi_Ncbg_unreinforced_kN": 87.39,
+      "phi_Vcpg_pryout_kN": 421.63,
+      "sustained_0.55phiNba_cap_kN": 16.14,
+      "sustained_per_anchor_kN": 12.66,
+      "tau_epoxy_slant_ult_MPa": 2.878,
+      "theta_deg": 45.0,
+      "unreinforced_cone_efficiency_pct": 13.37
+    },
+    "end_prestress_12x8mm_90deg_guillotine_fails": {
+      "N_ua_uplift_kN": 0.0,
+      "T_dowel_ult_group_kN": 0.0,
+      "all_ch17_gates_pass": false,
+      "cNa_mm": 116.52,
+      "da_mm": 8.0,
+      "gates": {
+        "adhesive_bond_group_17.6.5": true,
+        "cfrp_dowel_material_no_guillotine": false,
+        "concrete_pryout_17.7.3": true,
+        "sustained_epoxy_creep_17.5.2.2": true,
+        "tension_shear_interaction_17.8": true,
+        "uplift_cone_or_stirrup_core": true
+      },
+      "hef_eff_mm": 160.0,
+      "interaction_5_3": 0.2431,
+      "n_anchors": 12,
+      "phi_N_stirrup_core_kN": 445.1,
+      "phi_Nag_bond_group_kN": 195.76,
+      "phi_Ncbg_unreinforced_kN": 87.39,
+      "phi_Vcpg_pryout_kN": 421.63,
+      "sustained_0.55phiNba_cap_kN": 16.14,
+      "sustained_per_anchor_kN": 0.0,
+      "tau_epoxy_slant_ult_MPa": 0.0,
+      "theta_deg": 90.0,
+      "unreinforced_cone_efficiency_pct": 13.37
+    },
+    "end_prestress_cover_only_no_stirrup_cone_fails": {
+      "N_ua_uplift_kN": 128.89,
+      "T_dowel_ult_group_kN": 182.28,
+      "all_ch17_gates_pass": false,
+      "cNa_mm": 116.52,
+      "da_mm": 8.0,
+      "gates": {
+        "adhesive_bond_group_17.6.5": true,
+        "cfrp_dowel_material_no_guillotine": true,
+        "concrete_pryout_17.7.3": true,
+        "sustained_epoxy_creep_17.5.2.2": true,
+        "tension_shear_interaction_17.8": false,
+        "uplift_cone_or_stirrup_core": false
+      },
+      "hef_eff_mm": 160.0,
+      "interaction_5_3": 2.138,
+      "n_anchors": 12,
+      "phi_N_stirrup_core_kN": 0.0,
+      "phi_Nag_bond_group_kN": 195.76,
+      "phi_Ncbg_unreinforced_kN": 87.39,
+      "phi_Vcpg_pryout_kN": 188.23,
+      "sustained_0.55phiNba_cap_kN": 16.14,
+      "sustained_per_anchor_kN": 12.66,
+      "tau_epoxy_slant_ult_MPa": 2.878,
+      "theta_deg": 45.0,
+      "unreinforced_cone_efficiency_pct": 13.37
+    }
+  },
   "beam_benchmark_SI": {
     "cfrp_mass_reduction_at_higher_capacity_pct": 50.0,
     "flat_ebr_240mm2_eps_fd": 0.003538,
@@ -10,7 +172,7 @@
     "truss_anchored_240mm2_phi_Mn_kNm": 433.451,
     "unstrengthened_phi_Mn_kNm": 74.898
   },
-  "certificate_version": "0.2.0",
+  "certificate_version": "0.3.0",
   "must_fail_controls": [
     {
       "control": "ebr_strain_exceeds_0.9_eps_fu_cap",
@@ -42,6 +204,22 @@
     },
     {
       "control": "omitting_dead_load_eps_bi_is_conservative_for_rebar_stress",
+      "rejected": true
+    },
+    {
+      "control": "average_shear_flow_captures_post_yield_chord_gradient_spike",
+      "rejected": true
+    },
+    {
+      "control": "oversized_16mm_dowel_increases_width_truncated_group_bond_capacity",
+      "rejected": true
+    },
+    {
+      "control": "unreinforced_cover_cone_carries_180kN_end_prestress_without_stirrup_core",
+      "rejected": true
+    },
+    {
+      "control": "vertical_90deg_carbon_dowel_survives_guillotine_shear",
       "rejected": true
     }
   ],
