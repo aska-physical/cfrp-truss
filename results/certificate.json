@@ -1,0 +1,46 @@
+{
+  "beam_benchmark_SI": {
+    "cfrp_mass_reduction_at_higher_capacity_pct": 50.0,
+    "flat_ebr_240mm2_eps_fd": 0.003538,
+    "flat_ebr_240mm2_fiber_utilization_pct": 17.24,
+    "flat_ebr_240mm2_phi_Mn_kNm": 277.078,
+    "moment_gain_over_flat_ebr_same_area_pct": 77.34,
+    "truss_anchored_120mm2_phi_Mn_kNm": 375.514,
+    "truss_anchored_240mm2_fiber_utilization_pct": 43.24,
+    "truss_anchored_240mm2_phi_Mn_kNm": 433.451,
+    "unstrengthened_phi_Mn_kNm": 74.898
+  },
+  "certificate_version": "1.0.0",
+  "must_fail_controls": [
+    {
+      "control": "ebr_strain_exceeds_0.9_eps_fu_cap",
+      "rejected": true
+    },
+    {
+      "control": "shear_stitch_strain_exceeds_0.004_aggregate_interlock",
+      "rejected": true
+    },
+    {
+      "control": "unanchored_2ply_ebr_uses_over_25pct_t1100g_strain",
+      "rejected": true
+    },
+    {
+      "control": "pure_axial_strain_corrupts_50khz_bondline_reactance",
+      "rejected": true
+    },
+    {
+      "control": "half_mass_truss_kit_underperforms_double_mass_flat_ebr",
+      "rejected": true
+    }
+  ],
+  "repository": "aska-physical/cfrp-truss",
+  "self_sensing_eis_separability": {
+    "debonding_100hz_resistance_jump_pct": 111.61,
+    "moisture_50khz_reactance_shift_pct": 22.4,
+    "strain_0.5pct_hf_resistance_shift_pct": 0.409
+  },
+  "shear_stitch_45deg": {
+    "Vf_45deg_kN": 177.218,
+    "eps_fv_cap": 0.004
+  }
+}
