@@ -12,6 +12,12 @@ ROOT = Path(__file__).resolve().parent
 CERT_PATH = ROOT / "results" / "certificate.json"
 
 
+def require(condition: bool, message: str) -> None:
+    """Fail-closed guard that cannot be stripped by python3 -O."""
+    if not condition:
+        raise ValueError(f"verification failed: {message}")
+
+
 def aci440_ebr_debonding_strain(fc_MPa: float, n_plies: int, Ef_MPa: float, tf_mm: float, eps_fu: float) -> float:
     return min(0.41 * math.sqrt(fc_MPa / (n_plies * Ef_MPa * tf_mm)), 0.9 * eps_fu)
 
@@ -64,7 +70,7 @@ def solve_cracked_serviceability(
                 ck_hi = ck_m
         ck_f = 0.5 * (ck_lo + ck_hi)
         f_res, fc, fs, ff = moment_for_ck(ck_f)
-        assert abs(f_res) < 1.0
+        require(abs(f_res) < 1.0, f"cracked serviceability force equilibrium did not converge (residual={f_res:.6g})")
         return ck_f, fc, fs, ff
 
     ck_tot, fc_s, fs_s, ff_s = solve_at_moment(M_service_kNm)
@@ -97,16 +103,25 @@ def verify_symbolic_identities() -> bool:
     Ts, Tf = As * Es * phi * (d - c), Af * Ef * phi * (df - c)
     ns, nf = Es / Ec, Ef / Ec
     expected = sp.Rational(1, 2) * b * c**2 + (ns * As + nf * Af) * c - (ns * As * d + nf * Af * df)
-    assert sp.simplify((Cc - Ts - Tf) / (Ec * phi) - expected) == 0
+    require(
+        sp.simplify((Cc - Ts - Tf) / (Ec * phi) - expected) == 0,
+        "cracked-section neutral-axis equilibrium symbolic identity failed",
+    )
 
     hef, s, n = sp.symbols("hef s n", positive=True)
     ANc_trunc = b * (sp.Rational(3, 2) * hef + (n - 1) * s + sp.Rational(3, 2) * hef)
-    assert sp.simplify(ANc_trunc / (9 * hef**2) - b * (3 * hef + (n - 1) * s) / (9 * hef**2)) == 0
+    require(
+        sp.simplify(ANc_trunc / (9 * hef**2) - b * (3 * hef + (n - 1) * s) / (9 * hef**2)) == 0,
+        "width-truncated concrete breakout cone ratio identity failed",
+    )
 
     da, Lz, tau_cr, tau_uncr = sp.symbols("da Lz tau_cr tau_uncr", positive=True)
     cNa = 10 * da * sp.sqrt(tau_uncr / sp.Rational(76, 10))
     Nag_tr = (b * Lz / (4 * cNa**2)) * (tau_cr * sp.pi * da * hef)
-    assert sp.simplify(sp.diff(Nag_tr, da) + Nag_tr / da) == 0
+    require(
+        sp.simplify(sp.diff(Nag_tr, da) + Nag_tr / da) == 0,
+        "inverse dowel-diameter group bond sensitivity identity failed",
+    )
     return True
 
 
@@ -343,7 +358,7 @@ def cole_bondline_eis(freqs_Hz: list[float], R_inf: float, R0: float, tau_s: flo
 
 
 def run_verification() -> dict[str, Any]:
-    assert verify_symbolic_identities()
+    require(verify_symbolic_identities(), "symbolic identities verification returned falsy")
     Ef, ffu = 195800.0, 0.95 * 4230.25
     eps_fu = ffu / Ef
 
@@ -353,7 +368,11 @@ def run_verification() -> dict[str, Any]:
     truss_240 = solve_rc_cfrp_beam(300.0, 520.0, 600.0, 35.0, 1500.0, 420.0, 200000.0, 240.0, Ef, 0.70 * eps_fu)
     truss_120 = solve_rc_cfrp_beam(300.0, 520.0, 600.0, 35.0, 1500.0, 420.0, 200000.0, 120.0, Ef, 0.70 * eps_fu)
     ebr_u, tr_u = 100.0 * ebr_240["eps_fe"] / eps_fu, 100.0 * truss_240["eps_fe"] / eps_fu
-    assert tr_u > 2.5 * ebr_u and truss_120["phi_Mn_kNm"] > ebr_240["phi_Mn_kNm"]
+    require(tr_u > 2.5 * ebr_u, f"truss fiber utilization ({tr_u:.2f}%) must exceed 2.5x EBR ({ebr_u:.2f}%)")
+    require(
+        truss_120["phi_Mn_kNm"] > ebr_240["phi_Mn_kNm"],
+        f"half-mass truss capacity ({truss_120['phi_Mn_kNm']}) must exceed double-mass EBR ({ebr_240['phi_Mn_kNm']})",
+    )
 
     init_s = solve_unstrengthened_cracked_eps_bi(55.0, 300.0, 520.0, 590.0, 35.0, 1500.0, 200000.0)
     ebi = init_s["eps_bi"]
@@ -395,7 +414,10 @@ def run_verification() -> dict[str, Any]:
         {"control": "unreinforced_cover_cone_carries_180kN_end_prestress_without_stirrup_core", "rejected": not e_cov_f["gates"]["uplift_cone_or_stirrup_core"]},
         {"control": "vertical_90deg_carbon_dowel_survives_guillotine_shear", "rejected": not e_90_f["gates"]["cfrp_dowel_material_no_guillotine"]},
     ]
-    assert s_des["all_serviceability_gates_pass"] and s_ov_pr["all_serviceability_gates_pass"] and all(c["rejected"] for c in controls)
+    require(s_des["all_serviceability_gates_pass"], "design serviceability envelope failed")
+    require(s_ov_pr["all_serviceability_gates_pass"], "prestressed overload serviceability envelope failed")
+    failed_controls = [c["control"] for c in controls if not c["rejected"]]
+    require(not failed_controls, f"must-fail controls not rejected: {', '.join(failed_controls)}")
 
     return {
         "repository": "aska-physical/cfrp-truss",
@@ -447,7 +469,8 @@ def main() -> int:
     if not CERT_PATH.exists() or json.loads(CERT_PATH.read_text(encoding="utf-8")) != cert:
         print("[FAIL] results/certificate.json mismatch or missing", file=sys.stderr)
         return 1
-    print("[PASS] cfrp-truss v0.3.0 ULS + Serviceability + Creep + ACI 318 Ch.17 Dowel/Epoxy + EIS (12/12 controls): OK")
+    n_controls = len(cert["must_fail_controls"])
+    print(f"[PASS] cfrp-truss v0.3.0 ULS + Serviceability + Creep + ACI 318 Ch.17 Dowel/Epoxy + EIS ({n_controls}/{n_controls} controls): OK")
     return 0
 
 
