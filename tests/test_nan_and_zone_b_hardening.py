@@ -513,6 +513,86 @@ class TestCfrpTrussNanAndZoneBHardening(unittest.TestCase):
             self.assertIn("[FAIL]", p.stderr)
             self.assertNotIn("Traceback", p.stderr)
 
+    def test_darwin_system_root_alias_normalization(self) -> None:
+        from types import SimpleNamespace
+
+        root_lnk = SimpleNamespace(st_mode=stat.S_IFLNK | 0o777, st_uid=0)
+        user_lnk = SimpleNamespace(st_mode=stat.S_IFLNK | 0o777, st_uid=1000)
+
+        def _fake_readlink(p: str) -> str:
+            if p == "/var":
+                return "private/var"
+            if p == "/tmp":
+                return "private/tmp"
+            if p == "/etc":
+                return "private/etc"
+            raise OSError("unexpected readlink")
+
+        with (
+            mock.patch.object(verify.sys, "platform", "darwin"),
+            mock.patch.object(verify.os, "lstat", return_value=root_lnk),
+            mock.patch.object(verify.os, "readlink", side_effect=_fake_readlink),
+        ):
+            self.assertEqual(
+                verify._normalize_darwin_system_prefix(Path("/var/folders/xx/cert.json")),
+                Path("/private/var/folders/xx/cert.json"),
+            )
+            self.assertEqual(
+                verify._normalize_darwin_system_prefix(Path("/tmp/cert.json")),
+                Path("/private/tmp/cert.json"),
+            )
+            self.assertEqual(
+                verify._normalize_darwin_system_prefix(Path("/tmp"), allow_exact=True),
+                Path("/private/tmp"),
+            )
+            self.assertEqual(verify._normalize_darwin_system_prefix(Path("/tmp")), Path("/tmp"))
+            self.assertEqual(
+                verify._normalize_darwin_system_prefix(Path("/tmp/../etc/passwd")),
+                Path("/tmp/../etc/passwd"),
+            )
+            # Confirm _open_parent_dir_fd passes normalized private/var components to _step_dir_fd_chain
+            captured: list[list[str]] = []
+
+            def _fake_step(start_fd: int, comps: list[str], label: str, *, create_missing: bool = False) -> int:
+                captured.append(list(comps))
+                return start_fd
+
+            with mock.patch.object(verify, "_step_dir_fd_chain", side_effect=_fake_step):
+                dfd, leaf = verify._open_parent_dir_fd(Path("/var/folders/xx/cert.json"))
+                os.close(dfd)
+                self.assertEqual(leaf, "cert.json")
+                self.assertEqual(captured[-1], ["private", "var", "folders", "xx"])
+                # Nested planted symlink stays in traversed components for O_NOFOLLOW rejection
+                dfd2, leaf2 = verify._open_parent_dir_fd(Path("/var/folders/xx/evil_link/cert.json"))
+                os.close(dfd2)
+                self.assertEqual(leaf2, "cert.json")
+                self.assertEqual(captured[-1], ["private", "var", "folders", "xx", "evil_link"])
+
+        # Non-root owner, hijacked target, and Linux must NOT normalize
+        with (
+            mock.patch.object(verify.sys, "platform", "darwin"),
+            mock.patch.object(verify.os, "lstat", return_value=user_lnk),
+            mock.patch.object(verify.os, "readlink", side_effect=_fake_readlink),
+        ):
+            self.assertEqual(
+                verify._normalize_darwin_system_prefix(Path("/var/folders/xx/cert.json")),
+                Path("/var/folders/xx/cert.json"),
+            )
+        with (
+            mock.patch.object(verify.sys, "platform", "darwin"),
+            mock.patch.object(verify.os, "lstat", return_value=root_lnk),
+            mock.patch.object(verify.os, "readlink", return_value="private/evil"),
+        ):
+            self.assertEqual(
+                verify._normalize_darwin_system_prefix(Path("/var/folders/xx/cert.json")),
+                Path("/var/folders/xx/cert.json"),
+            )
+        with mock.patch.object(verify.sys, "platform", "linux"):
+            self.assertEqual(
+                verify._normalize_darwin_system_prefix(Path("/var/folders/xx/cert.json")),
+                Path("/var/folders/xx/cert.json"),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

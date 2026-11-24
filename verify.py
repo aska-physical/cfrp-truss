@@ -133,13 +133,46 @@ def _step_dir_fd_chain(start_fd: int, components: Sequence[str], label: str, *, 
     return dfd
 
 
+_DARWIN_SYSTEM_ROOT_ALIASES: tuple[tuple[str, str], ...] = (
+    ("/var", "/private/var"),
+    ("/tmp", "/private/tmp"),
+    ("/etc", "/private/etc"),
+)
+
+
+def _normalize_darwin_system_prefix(path: Path, *, allow_exact: bool = False) -> Path:
+    """Map verified root-owned macOS /var, /tmp, /etc aliases to /private/* without resolving user symlinks."""
+    if sys.platform != "darwin" or not path.is_absolute():
+        return path
+    parts = path.parts
+    min_parts = 2 if allow_exact else 3
+    if len(parts) < min_parts or parts[0] != "/" or ".." in parts:
+        return path
+    top = "/" + parts[1]
+    for alias, canonical in _DARWIN_SYSTEM_ROOT_ALIASES:
+        if top != alias:
+            continue
+        try:
+            st = os.lstat(alias)
+            if not stat.S_ISLNK(st.st_mode) or st.st_uid != 0:
+                return path
+            target = os.readlink(alias)
+            if target not in (canonical, canonical.lstrip("/")):
+                return path
+        except OSError:
+            return path
+        return Path(canonical, *parts[2:])
+    return path
+
+
 def _check_pwd_no_symlinks() -> None:
     """Verify logical PWD ancestors contain zero symlinks via dir_fd chain (zero islink)."""
     pwd_env = os.environ.get("PWD", "")
     if not pwd_env.startswith("/"):
         return
     _require_utf8_path_str(pwd_env, "PWD")
-    pwd_parts = [p for p in Path(pwd_env).parts[1:] if p not in ("", ".")]
+    pwd_path = _normalize_darwin_system_prefix(Path(pwd_env), allow_exact=True)
+    pwd_parts = [p for p in pwd_path.parts[1:] if p not in ("", ".")]
     try:
         root_fd = os.open("/", os.O_RDONLY | os.O_DIRECTORY)
     except OSError as exc:
@@ -154,9 +187,10 @@ def _open_parent_dir_fd(path: Any, *, create_missing: bool = False) -> tuple[int
         raise ValueError("path subclass or non-Path forbidden")
     _require_utf8_path_str(str(path), "path")
     if path.is_absolute():
-        raw_parts = [p for p in path.parts[1:] if p not in ("", ".")]
+        norm_path = _normalize_darwin_system_prefix(path)
+        raw_parts = [p for p in norm_path.parts[1:] if p not in ("", ".")]
         try:
-            start_fd = os.open(path.anchor, os.O_RDONLY | os.O_DIRECTORY)
+            start_fd = os.open(norm_path.anchor, os.O_RDONLY | os.O_DIRECTORY)
         except OSError as exc:
             raise ValueError(f"cannot open root anchor: {type(exc).__name__}") from exc
     else:
