@@ -46,11 +46,11 @@ class TestCfrpTrussOSafety(unittest.TestCase):
         with mock.patch.object(sys, "argv", ["verify.py"]), redirect_stdout(buf):
             rc = verify.main()
         self.assertEqual(rc, 0)
-        self.assertIn("(12/12 controls): OK", buf.getvalue())
+        self.assertIn("(15/15 controls): OK", buf.getvalue())
 
     def test_every_symbolic_identity_guard_and_wrapper_is_live(self) -> None:
         real_simplify = verify.sp.simplify
-        for fail_idx in (1, 2, 3):
+        for fail_idx in (1, 2, 3, 4, 5):
             calls = [0]
 
             def _sabotage(expr: object, _idx: int = fail_idx) -> object:

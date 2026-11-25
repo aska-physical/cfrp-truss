@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Deterministic ACI 440.2R-17/-23 ULS + Serviceability (§10.2.8) + Creep (§10.2.9)
-+ ACI 318M-19 Ch. 17 45-deg Dowel/Epoxy Sizing + Cole EIS verifier (v0.3.0)."""
++ ACI 318M-19 Ch. 17 45-deg Dowel/Epoxy Sizing + Bar-Axis ILSS Shear + Cole EIS verifier (v0.3.1)."""
 
 from __future__ import annotations
 import argparse, cmath, errno, hmac, json, math, os, secrets, stat, sys, threading
@@ -467,6 +467,20 @@ def verify_symbolic_identities() -> bool:
         sp.simplify(sp.diff(Nag_tr, da) + Nag_tr / da) == 0,
         "inverse dowel-diameter group bond sensitivity identity failed",
     )
+
+    F_cr, th_s, mu_s = sp.symbols("F_cr th_s mu_s", positive=True)
+    N_bar_s, V_bar_s = F_cr * sp.cos(th_s), F_cr * sp.sin(th_s)
+    require(
+        sp.simplify(N_bar_s**2 + V_bar_s**2 - F_cr**2) == 0,
+        "bar-axis crack-plane force resolution Pythagorean identity failed",
+    )
+
+    T_tr_s = F_cr / (sp.cos(th_s) + mu_s * sp.sin(th_s))
+    N_up_s, V_pry_s = T_tr_s * sp.sin(th_s), T_tr_s * sp.cos(th_s)
+    require(
+        sp.simplify(V_pry_s + mu_s * N_up_s - F_cr) == 0,
+        "single-counted pad-friction horizontal equilibrium identity failed",
+    )
     return True
 
 
@@ -610,6 +624,8 @@ def evaluate_aci318_ch17_anchor_group(
     tau_cr_2500psi_MPa: float, tau_uncr_2500psi_MPa: float, F_horiz_ult_kN: float, F_horiz_sus_kN: float,
     engage_closed_stirrup_core: bool = True, stirrup_spacing_mm: float = 150.0,
     Asv_2leg_mm2: float = 157.0, fyt_MPa: float = 420.0, pad_friction_coeff: float = 0.40,
+    f_dowel_tens_MPa: float = 4018.74, tau_dowel_shear_MPa: float = 75.0,
+    A_se_ratio: float = 1.0, phi_N_bar: float = 0.65, phi_V_bar: float = 0.60,
 ) -> dict[str, Any]:
     for val, nm in (
         (s_long_mm, "s_long_mm"), (s_trans_mm, "s_trans_mm"), (c_end_mm, "c_end_mm"),
@@ -619,12 +635,20 @@ def evaluate_aci318_ch17_anchor_group(
         (F_horiz_ult_kN, "F_horiz_ult_kN"), (F_horiz_sus_kN, "F_horiz_sus_kN"),
         (stirrup_spacing_mm, "stirrup_spacing_mm"), (Asv_2leg_mm2, "Asv_2leg_mm2"),
         (fyt_MPa, "fyt_MPa"), (pad_friction_coeff, "pad_friction_coeff"),
+        (f_dowel_tens_MPa, "f_dowel_tens_MPa"), (tau_dowel_shear_MPa, "tau_dowel_shear_MPa"),
+        (A_se_ratio, "A_se_ratio"), (phi_N_bar, "phi_N_bar"), (phi_V_bar, "phi_V_bar"),
     ):
         require_finite(val, nm)
     n_anchors = require_positive_int(n_anchors, "n_anchors")
     n_rows_across_width = require_positive_int(n_rows_across_width, "n_rows_across_width")
     require(n_anchors >= n_rows_across_width, "n_anchors must be >= n_rows_across_width")
     require(fc_MPa > 0.0 and da_mm > 0.0 and L_drill_mm > 0.0 and stirrup_spacing_mm > 0.0, "anchor geometry/strength inputs must be > 0")
+    require(0.0 < theta_deg <= 90.0, f"theta_deg must be in (0, 90] (got {theta_deg})")
+    require(pad_friction_coeff >= 0.0, f"pad_friction_coeff must be >= 0 (got {pad_friction_coeff})")
+    require(F_horiz_ult_kN >= 0.0 and F_horiz_sus_kN >= 0.0, "anchor horizontal loads must be >= 0")
+    require(f_dowel_tens_MPa > 0.0 and tau_dowel_shear_MPa > 0.0, "dowel material strengths must be > 0")
+    require(0.0 < A_se_ratio <= 1.0, f"A_se_ratio must be in (0, 1] (got {A_se_ratio})")
+    require(0.0 < phi_N_bar <= 1.0 and 0.0 < phi_V_bar <= 1.0, f"phi_N_bar/phi_V_bar must be in (0, 1] (got {phi_N_bar}, {phi_V_bar})")
     rad = math.radians(theta_deg)
     hef_geom = L_drill_mm * math.sin(rad) if theta_deg > 1e-3 else L_drill_mm
     hef = finite_min(20.0 * da_mm, hef_geom, "hef")
@@ -671,13 +695,28 @@ def evaluate_aci318_ch17_anchor_group(
     gov_N_pry = Nag if (engage_closed_stirrup_core and hef_geom >= 120.0) else finite_min(Ncbg, Nag, "gov_N_pry")
     phi_Vcpg_kN = phi_V * k_cp * gov_N_pry * 1e-3
 
+    # Concrete anchorage equilibrium (single-counted pad friction: V_pry + mu*N_up == F_horiz_ult_kN)
     if theta_deg < 89.0:
         den = math.cos(rad) + pad_friction_coeff * math.sin(rad)
-        T_ult, T_sus, V_guil = F_horiz_ult_kN / den, F_horiz_sus_kN / den, 0.0
+        T_ult, T_sus = F_horiz_ult_kN / den, F_horiz_sus_kN / den
         N_up = T_ult * math.sin(rad)
-        V_pry = T_ult * math.cos(rad) * (1.0 - pad_friction_coeff * math.tan(rad))
+        V_pry = T_ult * math.cos(rad)
+        require(
+            abs(V_pry + pad_friction_coeff * N_up - F_horiz_ult_kN) <= 1e-9 * finite_max(1.0, F_horiz_ult_kN, "eq_tol"),
+            "horizontal pad-friction equilibrium violated",
+        )
     else:
-        T_ult, T_sus, V_guil, N_up, V_pry = 0.0, 0.0, F_horiz_ult_kN, 0.0, F_horiz_ult_kN
+        T_ult, T_sus, N_up, V_pry = 0.0, 0.0, 0.0, F_horiz_ult_kN
+
+    # Two distinct, self-consistent free bodies evaluated separately (force vectors are never mixed):
+    #   Free Body A (concrete anchorage tie with pad friction): pure axial bar force T_ult (shank shear = 0),
+    #     horizontal equilibrium V_pry + mu*N_up == F_horiz_ult_kN.
+    #   Free Body B (direct crack-plane dowel resolution of F_horiz_ult_kN, SymPy Identity 4):
+    #     conjugate orthogonal pair (N_bar, V_bar) = (F*cos(theta), F*sin(theta)) with hypot(N_bar, V_bar) == F.
+    # pass_mat conservatively requires the dowel material to survive BOTH Free Body A (T_ult <= phi_T_bar)
+    # and Free Body B (ACI 318-19 R17.8 5/3 interaction <= 1.0 and §17.8.3 trilinear interaction <= 1.2).
+    N_bar = F_horiz_ult_kN * math.cos(rad)
+    V_bar = F_horiz_ult_kN * math.sin(rad)
 
     u_up = require_finite(N_up / phi_N_up_kN, "u_up")
     u_bd = require_finite(T_ult / phi_Nag_kN, "u_bd")
@@ -686,13 +725,32 @@ def evaluate_aci318_ch17_anchor_group(
     cap_sus_1, sus_1 = 0.55 * phi_N * Nba * 1e-3, T_sus / n_anchors
     pass_cr = sus_1 <= cap_sus_1
 
+    # ACI 318-19 §17.5.3 strength reduction factors (default brittle phi_N = 0.65, phi_V = 0.60 per §2.3 &
+    # ICC-ES ESR-2786 Table 4 for ISO 898-1 Class 8.8 steel with 12% < 14% elongation and for bare CFRP).
     Ad = 0.25 * math.pi * (da_mm**2)
-    pass_mat = (T_ult <= n_anchors * 0.75 * Ad * 4018.74 * 1e-3) and (V_guil <= n_anchors * 0.65 * Ad * 75.0 * 1e-3)
+    A_se = Ad * A_se_ratio
+    phi_T_bar_kN = n_anchors * phi_N_bar * A_se * f_dowel_tens_MPa * 1e-3
+    phi_V_bar_kN = n_anchors * phi_V_bar * A_se * tau_dowel_shear_MPa * 1e-3
+    tau_bar_MPa = (V_bar * 1e3) / (n_anchors * A_se)
+    u_bar_N = require_finite(N_bar / phi_T_bar_kN, "u_bar_N")
+    u_bar_V = require_finite(V_bar / phi_V_bar_kN, "u_bar_V")
+    bar_mat_inter = require_finite((u_bar_N ** (5.0 / 3.0)) + (u_bar_V ** (5.0 / 3.0)), "bar_mat_inter_5_3")
+    bar_mat_trilinear = require_finite(u_bar_N + u_bar_V, "bar_mat_trilinear")
+    pass_bar_trilinear = (u_bar_N <= 0.2) or (u_bar_V <= 0.2) or (bar_mat_trilinear <= 1.2)
+    pass_mat = (
+        (T_ult <= phi_T_bar_kN)
+        and (u_bar_N <= 1.0)
+        and (u_bar_V <= 1.0)
+        and (bar_mat_inter <= 1.0)
+        and pass_bar_trilinear
+    )
     tau_sl = (T_ult * 1e3) / (n_anchors * math.pi * da_mm * finite_max(4.0 * da_mm, L_drill_mm - 20.0, "slant_length"))
     all_ok = bool(u_up <= 1.0 and u_bd <= 1.0 and u_pr <= 1.0 and inter <= 1.0 and pass_cr and pass_mat)
 
     return {
         "n_anchors": n_anchors, "da_mm": da_mm, "theta_deg": theta_deg,
+        "A_se_bar_mm2": round(A_se, 3),
+        "phi_N_bar": phi_N_bar, "phi_V_bar": phi_V_bar,
         "hef_eff_mm": round(hef, 2), "cNa_mm": round(cNa, 2),
         "unreinforced_cone_efficiency_pct": round(100.0 * Ncbg / (n_anchors * Nb), 2),
         "phi_Ncbg_unreinforced_kN": round(phi_Ncbg_kN, 2),
@@ -701,6 +759,15 @@ def evaluate_aci318_ch17_anchor_group(
         "phi_Vcpg_pryout_kN": round(phi_Vcpg_kN, 2),
         "T_dowel_ult_group_kN": round(T_ult, 2),
         "N_ua_uplift_kN": round(N_up, 2),
+        "V_pry_demand_kN": round(V_pry, 2),
+        "N_bar_axial_kN": round(N_bar, 2),
+        "V_bar_transverse_kN": round(V_bar, 2),
+        "phi_T_bar_tens_cap_kN": round(phi_T_bar_kN, 2),
+        "phi_V_bar_shear_cap_kN": round(phi_V_bar_kN, 2),
+        "tau_bar_transverse_MPa": round(tau_bar_MPa, 2),
+        "tau_dowel_shear_limit_MPa": round(tau_dowel_shear_MPa, 2),
+        "dowel_material_interaction_5_3": round(bar_mat_inter, 4),
+        "dowel_material_interaction_trilinear": round(bar_mat_trilinear, 4),
         "sustained_per_anchor_kN": round(sus_1, 2),
         "sustained_0.55phiNba_cap_kN": round(cap_sus_1, 2),
         "tau_epoxy_slant_ult_MPa": round(tau_sl, 3),
@@ -711,7 +778,7 @@ def evaluate_aci318_ch17_anchor_group(
             "sustained_epoxy_creep_17.5.2.2": bool(pass_cr),
             "concrete_pryout_17.7.3": bool(u_pr <= 1.0),
             "tension_shear_interaction_17.8": bool(inter <= 1.0),
-            "cfrp_dowel_material_no_guillotine": bool(pass_mat),
+            "dowel_material_strength_and_interaction": bool(pass_mat),
         },
         "all_ch17_gates_pass": all_ok,
     }
@@ -811,14 +878,39 @@ def run_verification() -> dict[str, Any]:
 
     fd_sf = solve_chord_shear_flow_fd(481.61, 2000.0, 40, 300.0, 520.0, 590.0, 35.0, 1500.0, 420.0, 200000.0, 240.0, Ef, ebi, 0.0032)
     F_ex = fd_sf["qf_excess_carried_by_stitches_N_per_mm"] * 150.0 * 1e-3
-    dist_p = evaluate_aci318_ch17_anchor_group(2, 2, 150.0, 140.0, 300.0, 300.0, 8.0, 226.0, 45.0, 35.0, 9.4, 13.5, F_ex, 0.0)
+    # Bare unidirectional CFRP 45-deg dowels (tau_ILSS = 75 MPa): honestly fail crack-plane transverse shear!
+    dist_bare_cfrp = evaluate_aci318_ch17_anchor_group(2, 2, 150.0, 140.0, 300.0, 300.0, 8.0, 226.0, 45.0, 35.0, 9.4, 13.5, F_ex, 0.0)
     T_sus = 240.0 * Ef * 0.0032 * 1e-3
     T_ult = 1.20 * T_sus
-    e_8_ok = evaluate_aci318_ch17_anchor_group(12, 2, 220.0, 140.0, 200.0, 300.0, 8.0, 230.0, 45.0, 35.0, 9.4, 13.5, T_ult, T_sus, True)
+    e_8_bare_cfrp = evaluate_aci318_ch17_anchor_group(12, 2, 220.0, 140.0, 200.0, 300.0, 8.0, 230.0, 45.0, 35.0, 9.4, 13.5, T_ult, T_sus, True)
+    # Verified passing alternative: ISO 898-1 M8x1.25 Class 8.8 steel threaded dowels.
+    # True ISO 898-1 tensile stress area A_s = (pi/4)*(d - 0.938194*P)^2 = 36.609 mm^2 (A_s/A_g = 0.7283),
+    # f_uta = 800 MPa (ISO 898-1), ACI 318-19 §17.7.1.2 shear coefficient 0.6*f_uta = 480 MPa, and
+    # ACI 318-19 §17.5.3 brittle-steel factors phi_N = 0.65, phi_V = 0.60 (Class 8.8 has 12% < 14% min
+    # elongation per §2.3; matches ICC-ES ESR-2786 Table 4). Under §17.5.3 + R17.8 5/3 interaction,
+    # 14 x 8 mm fails (1.0775 > 1.0, trilinear 1.3432 > 1.2) while 16 x 8 mm (8-pair) passes all gates.
+    iso898_m8_ase_ratio = ((8.0 - 0.938194 * 1.25) / 8.0) ** 2
+    dist_steel_ok = evaluate_aci318_ch17_anchor_group(
+        2, 2, 150.0, 140.0, 300.0, 300.0, 8.0, 226.0, 45.0, 35.0, 9.4, 13.5, F_ex, 0.0,
+        f_dowel_tens_MPa=800.0, tau_dowel_shear_MPa=480.0, A_se_ratio=iso898_m8_ase_ratio,
+        phi_N_bar=0.65, phi_V_bar=0.60,
+    )
+    e_14_steel_f = evaluate_aci318_ch17_anchor_group(
+        14, 2, 220.0, 140.0, 200.0, 300.0, 8.0, 230.0, 45.0, 35.0, 9.4, 13.5, T_ult, T_sus, True,
+        f_dowel_tens_MPa=800.0, tau_dowel_shear_MPa=480.0, A_se_ratio=iso898_m8_ase_ratio,
+        phi_N_bar=0.65, phi_V_bar=0.60,
+    )
+    e_16_steel_ok = evaluate_aci318_ch17_anchor_group(
+        16, 2, 220.0, 140.0, 200.0, 300.0, 8.0, 230.0, 45.0, 35.0, 9.4, 13.5, T_ult, T_sus, True,
+        f_dowel_tens_MPa=800.0, tau_dowel_shear_MPa=480.0, A_se_ratio=iso898_m8_ase_ratio,
+        phi_N_bar=0.65, phi_V_bar=0.60,
+    )
     e_16_f = evaluate_aci318_ch17_anchor_group(12, 2, 220.0, 140.0, 200.0, 300.0, 16.0, 250.0, 45.0, 35.0, 9.4, 13.5, T_ult, T_sus, True)
     e_cov_f = evaluate_aci318_ch17_anchor_group(12, 2, 220.0, 140.0, 200.0, 300.0, 8.0, 230.0, 45.0, 35.0, 9.4, 13.5, T_ult, T_sus, False)
     e_90_f = evaluate_aci318_ch17_anchor_group(12, 2, 220.0, 140.0, 200.0, 300.0, 8.0, 230.0, 90.0, 35.0, 9.4, 13.5, T_ult, T_sus, True)
-    ep_sz = size_dual_cartridge_epoxy(5600.0, 2, 12.0, 20.0, 240.0, 18, 226.0, 8.0, 12.0, 24, 230.0, 8.0, 12.0)
+    ep_sz = size_dual_cartridge_epoxy(
+        5600.0, 2, 12.0, 20.0, 240.0, 18, 226.0, 8.0, 12.0, 2 * e_16_steel_ok["n_anchors"], 230.0, 8.0, 12.0,
+    )
 
     sh_45 = shear_stitch_contribution_kN(50.0, Ef, 480.0, 150.0, 45.0)
     fr = [100.0, 5000.0, 50000.0, 2000000.0]
@@ -837,18 +929,23 @@ def run_verification() -> dict[str, Any]:
         {"control": "excessive_cfrp_sustained_stress_passes_0.55ffu_creep_rupture_gate", "rejected": not s_cr_f["gates"]["cfrp_creep_rupture_0.55ffu"]},
         {"control": "omitting_dead_load_eps_bi_is_conservative_for_rebar_stress", "rejected": s_z_ebi["fs_service_MPa"] < s_des["fs_service_MPa"] - 5.0},
         {"control": "average_shear_flow_captures_post_yield_chord_gradient_spike", "rejected": fd_sf["post_yield_over_avg_ratio"] > 3.5},
-        {"control": "oversized_16mm_dowel_increases_width_truncated_group_bond_capacity", "rejected": not e_16_f["gates"]["adhesive_bond_group_17.6.5"] and e_8_ok["all_ch17_gates_pass"] and dist_p["all_ch17_gates_pass"]},
+        {"control": "oversized_16mm_dowel_increases_width_truncated_group_bond_capacity", "rejected": not e_16_f["gates"]["adhesive_bond_group_17.6.5"] and e_8_bare_cfrp["gates"]["adhesive_bond_group_17.6.5"]},
         {"control": "unreinforced_cover_cone_carries_180kN_end_prestress_without_stirrup_core", "rejected": not e_cov_f["gates"]["uplift_cone_or_stirrup_core"]},
-        {"control": "vertical_90deg_carbon_dowel_survives_guillotine_shear", "rejected": not e_90_f["gates"]["cfrp_dowel_material_no_guillotine"]},
+        {"control": "vertical_90deg_carbon_dowel_survives_guillotine_shear", "rejected": not e_90_f["gates"]["dowel_material_strength_and_interaction"]},
+        {"control": "bare_45deg_cfrp_dowel_survives_crack_plane_ilss_shear", "rejected": (not e_8_bare_cfrp["gates"]["dowel_material_strength_and_interaction"]) and (not dist_bare_cfrp["gates"]["dowel_material_strength_and_interaction"]) and e_8_bare_cfrp["V_bar_transverse_kN"] > 4.0 * e_8_bare_cfrp["phi_V_bar_shear_cap_kN"]},
+        {"control": "v030_12x8mm_end_group_passes_ch17_interaction_without_double_counted_friction", "rejected": (not e_8_bare_cfrp["gates"]["tension_shear_interaction_17.8"]) and e_8_bare_cfrp["interaction_5_3"] > 1.0},
+        {"control": "class88_14x8mm_end_group_passes_brittle_17.5.3_interaction", "rejected": (not e_14_steel_f["gates"]["dowel_material_strength_and_interaction"]) and e_14_steel_f["dowel_material_interaction_5_3"] > 1.0 and e_14_steel_f["dowel_material_interaction_trilinear"] > 1.2},
     ]
     require(s_des["all_serviceability_gates_pass"], "design serviceability envelope failed")
     require(s_ov_pr["all_serviceability_gates_pass"], "prestressed overload serviceability envelope failed")
+    require(dist_steel_ok["all_ch17_gates_pass"], "Class 8.8 distributed stitch pair failed ACI 318 Ch. 17 gates")
+    require(e_16_steel_ok["all_ch17_gates_pass"], "Class 8.8 16x8mm end anchor group failed ACI 318 Ch. 17 gates")
     failed_controls = [c["control"] for c in controls if not c["rejected"]]
     require(not failed_controls, f"must-fail controls not rejected: {', '.join(failed_controls)}")
 
     return {
         "repository": "aska-physical/cfrp-truss",
-        "certificate_version": "0.3.0",
+        "certificate_version": "0.3.1",
         "beam_benchmark_SI": {
             "unstrengthened_phi_Mn_kNm": base["phi_Mn_kNm"],
             "flat_ebr_240mm2_eps_fd": round(eps_ebr, 6),
@@ -868,8 +965,11 @@ def run_verification() -> dict[str, Any]:
         },
         "aci318_ch17_dowel_and_epoxy_sizing_issue_2": {
             "chord_shear_flow_fd_481kNm": fd_sf,
-            "distributed_post_yield_stitch_pair_8mm": dist_p,
-            "end_prestress_12x8mm_45deg_stirrup_core_passes": e_8_ok,
+            "distributed_post_yield_stitch_pair_8mm_bare_cfrp_ilss_fails": dist_bare_cfrp,
+            "distributed_post_yield_stitch_pair_8mm_class88_steel_passes": dist_steel_ok,
+            "end_prestress_12x8mm_45deg_bare_cfrp_ilss_and_interaction_fail": e_8_bare_cfrp,
+            "end_prestress_14x8mm_45deg_class88_steel_brittle_interaction_fails": e_14_steel_f,
+            "end_prestress_16x8mm_45deg_class88_steel_stirrup_core_passes": e_16_steel_ok,
             "end_prestress_12x16mm_oversized_bond_fails": e_16_f,
             "end_prestress_cover_only_no_stirrup_cone_fails": e_cov_f,
             "end_prestress_12x8mm_90deg_guillotine_fails": e_90_f,
@@ -901,7 +1001,7 @@ def main() -> int:
         print(f"[FAIL] results/certificate.json mismatch or missing: {reason_v}", file=sys.stderr)
         return 1
     n_controls = len(cert["must_fail_controls"])
-    print(f"[PASS] cfrp-truss v0.3.0 ULS + Serviceability + Creep + ACI 318 Ch.17 Dowel/Epoxy + EIS ({n_controls}/{n_controls} controls): OK")
+    print(f"[PASS] cfrp-truss v0.3.1 ULS + Serviceability + Creep + ACI 318 Ch.17 Dowel/Epoxy + Bar-Axis ILSS + EIS ({n_controls}/{n_controls} controls): OK")
     return 0
 
 
