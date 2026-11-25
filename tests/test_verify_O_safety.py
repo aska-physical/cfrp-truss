@@ -46,7 +46,7 @@ class TestCfrpTrussOSafety(unittest.TestCase):
         with mock.patch.object(sys, "argv", ["verify.py"]), redirect_stdout(buf):
             rc = verify.main()
         self.assertEqual(rc, 0)
-        self.assertIn("(14/14 controls): OK", buf.getvalue())
+        self.assertIn("(15/15 controls): OK", buf.getvalue())
 
     def test_every_symbolic_identity_guard_and_wrapper_is_live(self) -> None:
         real_simplify = verify.sp.simplify
