@@ -297,7 +297,7 @@ class TestCfrpTrussNanAndZoneBHardening(unittest.TestCase):
             # Malformed certs: bool-as-int, duplicate key, int-as-float, CRLF, 5000-digit, invalid UTF-8/truncated
             for name, payload_b in (
                 ("zb06.json", cert_bytes.replace(b"true", b"1", 1)),
-                ("zb07.json", cert_bytes.replace(b'"certificate_version": "0.3.0",', b'"certificate_version": "0.0.0",\n  "certificate_version": "0.3.0",', 1)),
+                ("zb07.json", cert_bytes.replace(b'"certificate_version": "0.3.1",', b'"certificate_version": "0.0.0",\n  "certificate_version": "0.3.1",', 1)),
                 ("zb08.json", cert_bytes.replace(b'"n_anchors": 2,', b'"n_anchors": 2.0,', 1)),
                 ("zb03.json", ('{"x": ' + "9" * 5000 + "}\n").encode("utf-8")),
                 ("zb16_utf8.json", b"\xff\xfe\x00\n"),
